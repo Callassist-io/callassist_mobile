@@ -10,7 +10,7 @@
 	require_once dirname(__DIR__, 2) . "/resources/require.php";
 	require_once "resources/check_auth.php";
 
-//	header('HTTP/1.1 200 OK', true, 200);	
+	header('HTTP/1.1 200 OK', true, 200);	
     $action = $_REQUEST['action'];
 
     if($action == "cdr")
