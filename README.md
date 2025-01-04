@@ -2,6 +2,10 @@
 
 ## What is CallAssist Mobile FusionPBX App?
 
+####Manage business calls from your mobile phone
+CallAssist Mobile for FusionPBX* increases the flexibility, customer focus and professionalism of companies, especially for employees who work on the go. It ensures that customer communication is consistent and professional, while allowing the team to communicate more efficiently.
+
+*CallAssist Mobile only works on a FusionPBX platform
 
 ## Software Requirements
 
@@ -32,7 +36,7 @@ then click "Execute"
 
 ### 4 Logout from FusionPBX and login as a normal user, you will find:
 
-Menu->Applications->Callassist
+Menu->Applications->CallAssist Mobile
 
 
 ### 5 Upgrading After Install
@@ -48,7 +52,7 @@ often, and you will get latest features/bigfixes.
 #### 6.1 Remove the code
 ```
 cd /var/www/fusionpbx/app;
-rem -r callassist_mobile;
+rm -r callassist_mobile;
 ```
 
 #### 6.2 Remove the Defaults 
