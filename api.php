@@ -1,6 +1,5 @@
 <?php
 
-
 //error reporting
 	ini_set('display_errors', 1);
 	ini_set('display_startup_errors', 1);
@@ -19,11 +18,9 @@
         //set 24hr or 12hr clock
         define('TIME_24HR', 1);
 
-
         $limit = 50;
 
-        $sql_where_ors = array();
-        
+        $sql_where_ors = array();        
         foreach ($_SESSION['user']['extension'] as $row) { 
             if(!empty($row['extension_uuid']))
                 $sql_where_ors[] = "extension_uuid = '" . $row['extension_uuid'] . "'"; 
@@ -95,8 +92,6 @@
 		
 		$result = $resultnew;
 		$result_count = count($result);
-
-
 			
 		echo json_encode($result, JSON_FORCE_OBJECT);
 
@@ -205,14 +200,11 @@
         isset($_GET['status']) 
     ) {
 
-
         $extension_uuid = check_str($_GET['extension_uuid']);
         $extension = check_str($_GET['extension']);
         $dnd_enabled = check_str($_GET['status']);
-	 if(!($dnd_enabled == "true"))
-		$dnd_enabled = "false";
-
-
+        if(!($dnd_enabled == "true"))
+            $dnd_enabled = "false";
 
         $dnd = new do_not_disturb;
         $dnd->domain_uuid = $_SESSION['domain_uuid'];
@@ -244,8 +236,8 @@
 
         $extension_uuid = check_str($_GET['extension_uuid']);
         $forward_all_enabled = check_str($_GET['status']);
-	 if(!($forward_all_enabled == "true"))
-		$forward_all_enabled = "false";
+        if(!($forward_all_enabled == "true"))
+            $forward_all_enabled = "false";
         $forward_all_destination = check_str($_GET['dest']);
 
 
@@ -291,18 +283,16 @@
         echo "Forward ALL:" . $forward_all_enabled;
 
 
-        } else if($_GET['action'] == "setbusy" && 
-            isset($_GET['extension_uuid']) &&
-            isset($_GET['dest']) &&
-            isset($_GET['status']) ) {
-
+    } else if($_GET['action'] == "setbusy" && 
+        isset($_GET['extension_uuid']) &&
+        isset($_GET['dest']) &&
+        isset($_GET['status']) ) {
 
         $extension_uuid = check_str($_GET['extension_uuid']);
         $forward_busy_enabled = check_str($_GET['status']);
-	 if(!($forward_busy_enabled == "true"))
-		$forward_busy_enabled = "false";
+        if(!($forward_busy_enabled == "true"))
+            $forward_busy_enabled = "false";
         $forward_busy_destination = check_str($_GET['dest']);
-
 
         $forward_busy_destination = str_replace("+", "", $forward_busy_destination);
         if (strpos($forward_busy_destination, '0') === 0)
@@ -348,11 +338,10 @@
         isset($_GET['status']) 
     ) {
 
-
         $extension_uuid = check_str($_GET['extension_uuid']);
         $forward_no_answer_enabled = check_str($_GET['status']);
-	 if(!($forward_no_answer_enabled == "true"))
-		$forward_no_answer_enabled = "false";
+        if(!($forward_no_answer_enabled == "true"))
+            $forward_no_answer_enabled = "false";
         $forward_no_answer_destination = check_str($_GET['dest']);
 
         $forward_no_answer_destination = str_replace("+", "", $forward_no_answer_destination);
@@ -366,7 +355,6 @@
         $extensions['forward_no_answer_destination'] = $forward_no_answer_destination;
 
         $array['extensions'][] = $extensions;
-
 
         //add the dialplan permission
         $p = new permissions;
@@ -390,42 +378,41 @@
         $cache->delete("directory:".$extension["extension"]."@".$_SESSION['domain_name']);
         $cache->delete("directory:".$extension["number_alias"]."@".$_SESSION['domain_name']);
 
-
-
         echo "Forward NOANSWER:" . $forward_no_answer_enabled;
 
     }
     else if($_GET['action'] == "contacts")
     {
 
-	$sql = "SELECT v_contacts.contact_uuid, contact_name_given,contact_name_middle,contact_name_family,contact_organization,
-	
-	(SELECT contact_phone_uuid FROM v_contact_phones WHERE v_contact_phones.contact_uuid = v_contacts.contact_uuid AND phone_label <> 'Mobile' ORDER BY phone_primary ASC LIMIT 1 ) AS contact_work_uuid,
-	(SELECT phone_number FROM v_contact_phones WHERE v_contact_phones.contact_uuid = v_contacts.contact_uuid AND phone_label <> 'Mobile' ORDER BY phone_primary ASC LIMIT 1 ) AS contact_work_number,
-	
-	(SELECT contact_phone_uuid FROM v_contact_phones WHERE v_contact_phones.contact_uuid = v_contacts.contact_uuid AND phone_label = 'Mobile' LIMIT 1 ) AS contact_mobile_uuid,
-	(SELECT phone_number FROM v_contact_phones WHERE v_contact_phones.contact_uuid = v_contacts.contact_uuid AND phone_label = 'Mobile' LIMIT 1 ) AS contact_mobile_number,
-	
-	
-	v_contact_users.user_uuid 
-	
-	FROM v_contacts 
-	
-LEFT OUTER JOIN v_contact_users on v_contacts.contact_uuid = v_contact_users.contact_uuid AND v_contact_users.domain_uuid = '" . $_SESSION['domain_uuid'] . "'	
-	
-	WHERE v_contacts.domain_uuid = '".$_SESSION['domain_uuid']."' AND (v_contact_users.user_uuid = '" . $_SESSION['user_uuid'] . "' OR v_contact_users.user_uuid IS NULL)
-ORDER BY contact_name_given ASC";
+        $sql = "SELECT 
+                    v_contacts.contact_uuid, contact_name_given,contact_name_middle,contact_name_family,contact_organization,
+        
+                    (SELECT contact_phone_uuid FROM v_contact_phones WHERE v_contact_phones.contact_uuid = v_contacts.contact_uuid AND phone_label <> 'Mobile' ORDER BY phone_primary ASC LIMIT 1 ) AS contact_work_uuid,
+                    (SELECT phone_number FROM v_contact_phones WHERE v_contact_phones.contact_uuid = v_contacts.contact_uuid AND phone_label <> 'Mobile' ORDER BY phone_primary ASC LIMIT 1 ) AS contact_work_number,
+                    
+                    (SELECT contact_phone_uuid FROM v_contact_phones WHERE v_contact_phones.contact_uuid = v_contacts.contact_uuid AND phone_label = 'Mobile' LIMIT 1 ) AS contact_mobile_uuid,
+                    (SELECT phone_number FROM v_contact_phones WHERE v_contact_phones.contact_uuid = v_contacts.contact_uuid AND phone_label = 'Mobile' LIMIT 1 ) AS contact_mobile_number,
+                
+                    v_contact_users.user_uuid 
+                
+                FROM 
+                    v_contacts             
+                LEFT OUTER JOIN 
+                    v_contact_users on v_contacts.contact_uuid = v_contact_users.contact_uuid AND v_contact_users.domain_uuid = '" . $_SESSION['domain_uuid'] . "'	
+                WHERE 
+                    v_contacts.domain_uuid = '".$_SESSION['domain_uuid']."' AND (v_contact_users.user_uuid = '" . $_SESSION['user_uuid'] . "' OR v_contact_users.user_uuid IS NULL)
+                ORDER BY 
+                    contact_name_given 
+                ASC";
 
 
 
-	$prep_statement = $db->prepare($sql);
-	$prep_statement->execute();
-	$contacts = $prep_statement->fetchAll(PDO::FETCH_NAMED);
+        $prep_statement = $db->prepare($sql);
+        $prep_statement->execute();
+        $contacts = $prep_statement->fetchAll(PDO::FETCH_NAMED);
+        
+        unset ($prep_statement, $sql);
 	
-	unset ($prep_statement, $sql);
-	
-	
-
 		//build the response
 		$x = 0;
 		foreach($contacts as &$row) {
@@ -493,79 +480,76 @@ ORDER BY contact_name_given ASC";
             
             $switch_cmd = "api originate $source &bridge($destination)";
         }
-
         
         echo exec('php resources/c2c_socket.php -i "'.$_SESSION['event_socket_ip_address'].'" -p "'.$_SESSION['event_socket_port'].'" -w "'.$_SESSION['event_socket_password'].'" -c "'.$switch_cmd.'" > /dev/null &');
         echo "Request dispatched";
 
     } else {
 
-   
  //return user details
-			// Performing SQL query
-			$sql = "SELECT 
-						v_users.username,
-						v_extensions.extension,
-						v_extensions.extension_uuid,
-						v_extensions.outbound_caller_id_number,
-						'" . $_SESSION['domain_name'] . "' as accountcode,
-						v_extensions.enabled,
-						v_extensions.description
-					FROM
-						v_extensions, v_extension_users, v_users
-					WHERE 
-						v_extensions.extension_uuid = v_extension_users.extension_uuid AND
-						v_extension_users.user_uuid = v_users.user_uuid AND
-						v_users.user_uuid = '" . $_SESSION['user_uuid'] . "' AND
-						v_extensions.domain_uuid = '" . $_SESSION['domain_uuid'] . "'
-					;";		
-					
+        // Performing SQL query
+        $sql = "SELECT 
+                    v_users.username,
+                    v_extensions.extension,
+                    v_extensions.extension_uuid,
+                    v_extensions.outbound_caller_id_number,
+                    '" . $_SESSION['domain_name'] . "' as accountcode,
+                    v_extensions.enabled,
+                    v_extensions.description
+                FROM
+                    v_extensions, v_extension_users, v_users
+                WHERE 
+                    v_extensions.extension_uuid = v_extension_users.extension_uuid AND
+                    v_extension_users.user_uuid = v_users.user_uuid AND
+                    v_users.user_uuid = '" . $_SESSION['user_uuid'] . "' AND
+                    v_extensions.domain_uuid = '" . $_SESSION['domain_uuid'] . "'
+                ORDER BY
+                    v_extensions.extension
+                ASC
+                ;";		
+                
+        $prep_statement = $db->prepare(check_sql($sql));
+        $prep_statement->execute();
+        $extensions = $prep_statement->fetchAll(PDO::FETCH_NAMED);
 
-			$prep_statement = $db->prepare(check_sql($sql));
-			$prep_statement->execute();
-			$extensions = $prep_statement->fetchAll(PDO::FETCH_NAMED);
+        // Get User settings
+        $sql = "SELECT user_setting_subcategory, user_setting_name, user_setting_value
+                FROM
+                    v_user_settings
+                WHERE 
+                    v_user_settings.user_uuid = '" . $_SESSION['user_uuid'] . "' AND
+                    v_user_settings.domain_uuid = '" . $_SESSION['domain_uuid'] . "' AND
+                    v_user_settings.user_setting_category = 'callassist';";	
 
+    
+        $prep_statement = $db->prepare(check_sql($sql));
+        $prep_statement->execute();
 
+        $usersettings = $prep_statement->fetchAll(PDO::FETCH_NAMED);
 
+        $usersettingsnew = array();	
+        foreach ($usersettings as $setting)
+        {
+            if($setting["user_setting_subcategory"] == "numbers" && !empty($setting["user_setting_value"]))
+                $usersettingsnew["numbers"][] = $setting["user_setting_value"];
+        }		
 
-			// Get User settings
-			$sql = "SELECT user_setting_subcategory, user_setting_name, user_setting_value
-					FROM
-						v_user_settings
-					WHERE 
-						v_user_settings.user_uuid = '" . $_SESSION['user_uuid'] . "' AND
-						v_user_settings.domain_uuid = '" . $_SESSION['domain_uuid'] . "'";/* AND
-						v_user_settings.user_setting_category = 'callassist';";		*/
+        foreach ($extensions as $extension)
+        {
+            if(!empty($extension["outbound_caller_id_number"]))
+                $usersettingsnew["numbers"][] = $extension["outbound_caller_id_number"];
+        }
+    
+        $extensionsnew = array();
+        foreach ($extensions as $extension)
+        {
+            $extension["settings"] = $usersettingsnew;
+            $extension["enabled"] = filter_var($extension["enabled"], FILTER_VALIDATE_BOOLEAN);
+            if($extension["outbound_caller_id_number"] == null)
+                $extension["outbound_caller_id_number"] = "";
+            $extensionsnew[] = $extension;
+        }
 
-		
-			$prep_statement = $db->prepare(check_sql($sql));
-			$prep_statement->execute();
-
-			$usersettings = $prep_statement->fetchAll(PDO::FETCH_NAMED);
-
-			$usersettingsnew = array();	
-			//$usersettingsnew["numbers"][] = "";
-			foreach ($usersettings as $setting)
-			{
-				if($setting["user_setting_subcategory"] == "numbers" && !empty($setting["user_setting_value"]))
-					$usersettingsnew[$setting["user_setting_subcategory"]][] = $setting["user_setting_value"];
-			}		
-
-			//get the registrations
-			$obj = new registrations;
-			$registrations = $obj->get($profile);
-		
-			$extensionsnew = array();
-			foreach ($extensions as $extension)
-			{
-				$usersettingsnew["numbers"][] = $extension["outbound_caller_id_number"];
-				$extension["settings"] = $usersettingsnew;
-				$extension["enabled"] = filter_var($extension["enabled"], FILTER_VALIDATE_BOOLEAN);
-				if($extension["outbound_caller_id_number"] == null)
-					$extension["outbound_caller_id_number"] = "";
-				$extensionsnew[] = $extension;
-			}
-
-			echo json_encode($extensionsnew);
+        echo json_encode($extensionsnew);
     
     }
