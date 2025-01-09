@@ -237,7 +237,7 @@
     unset($parameters);
 
 //get assigned extensions for user
-    $sql = "select u.extension_user_uuid, e.extension_uuid, e.extension, e.effective_caller_id_name, e.outbound_caller_id_number ";
+    $sql = "select u.extension_user_uuid, e.extension_uuid, e.extension, e.effective_caller_id_name, e.outbound_caller_id_number, e.description ";
     $sql .= "from v_extension_users as u, v_extensions as e ";
     $sql .= "where u.extension_uuid = e.extension_uuid  ";
     $sql .= "and u.domain_uuid = :domain_uuid ";
@@ -405,6 +405,10 @@
                 echo escape($field['extension']);
                 if($field['extension'] != $field['effective_caller_id_name'] && !empty($field['effective_caller_id_name']))
                     echo " - " . escape($field['effective_caller_id_name']);
+                
+                if(!empty($field['description'] && $field['description'] != $field['effective_caller_id_name']))
+                    echo " - " . escape($field['description']);
+
                 echo "	</td>\n";
                 
                     echo "	<td class='list_control_icons' style='width: 25px;'>\n";
@@ -419,7 +423,7 @@
     }
 
 //get the list
-    $sql = "select extension_uuid, extension, effective_caller_id_name from v_extensions ";
+    $sql = "select extension_uuid, extension, effective_caller_id_name, description from v_extensions ";
     $sql .= "where domain_uuid = :domain_uuid ";
     $parameters['domain_uuid'] = $domain_uuid;
 
@@ -435,7 +439,11 @@
         echo "	<option value=''></option>\n";
         foreach($extensions as $field) {
             if (!(array_search($field['extension_uuid'], array_column( $assigned_extensions, 'extension_uuid')) !== false)) {
-                echo "	<option value='".$field['extension_uuid']."'>".$field['extension'] . ($field['extension'] != $field['effective_caller_id_name'] && !empty($field['effective_caller_id_name']) ? " - " . $field['effective_caller_id_name'] : "") . "</option>\n";
+                echo "	<option value='".$field['extension_uuid']."'>". 
+                    $field['extension'] . 
+                    ($field['extension'] != $field['effective_caller_id_name'] && !empty($field['effective_caller_id_name']) ? " - " . $field['effective_caller_id_name'] : "") . 
+                    (!empty($field['description'] && $field['description'] != $field['effective_caller_id_name']) ? " - " . $field['description'] : "") . 
+                "</option>\n";
             }
             
         }
