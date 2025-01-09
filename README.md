@@ -23,6 +23,7 @@ YOU **REALLY** NEED TO DO **ALL** FOLLOWING STEPS
 cd /var/www/fusionpbx/app;
 git clone https://github.com/Callassist-io/callassist_mobile.git;
 chown -R www-data:www-data callassist_mobile;
+git config --global --add safe.directory /var/www/fusionpbx/app/callassist_mobile;
 ```
 
 ### 2 Login as superadmin to your FusionPBX Web GUI:
