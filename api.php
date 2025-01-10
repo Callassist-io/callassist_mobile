@@ -387,11 +387,11 @@
         $sql = "SELECT 
                     v_contacts.contact_uuid, contact_name_given,contact_name_middle,contact_name_family,contact_organization,
         
-                    (SELECT contact_phone_uuid FROM v_contact_phones WHERE v_contact_phones.contact_uuid = v_contacts.contact_uuid AND phone_label <> 'Mobile' ORDER BY phone_primary ASC LIMIT 1 ) AS contact_work_uuid,
-                    (SELECT phone_number FROM v_contact_phones WHERE v_contact_phones.contact_uuid = v_contacts.contact_uuid AND phone_label <> 'Mobile' ORDER BY phone_primary ASC LIMIT 1 ) AS contact_work_number,
+                    (SELECT contact_phone_uuid FROM v_contact_phones WHERE v_contact_phones.contact_uuid = v_contacts.contact_uuid AND phone_label <> 'mobile' ORDER BY phone_primary ASC LIMIT 1 ) AS contact_work_uuid,
+                    (SELECT phone_number FROM v_contact_phones WHERE v_contact_phones.contact_uuid = v_contacts.contact_uuid AND phone_label <> 'mobile' ORDER BY phone_primary ASC LIMIT 1 ) AS contact_work_number,
                     
-                    (SELECT contact_phone_uuid FROM v_contact_phones WHERE v_contact_phones.contact_uuid = v_contacts.contact_uuid AND phone_label = 'Mobile' LIMIT 1 ) AS contact_mobile_uuid,
-                    (SELECT phone_number FROM v_contact_phones WHERE v_contact_phones.contact_uuid = v_contacts.contact_uuid AND phone_label = 'Mobile' LIMIT 1 ) AS contact_mobile_number,
+                    (SELECT contact_phone_uuid FROM v_contact_phones WHERE v_contact_phones.contact_uuid = v_contacts.contact_uuid AND phone_label = 'mobile' LIMIT 1 ) AS contact_mobile_uuid,
+                    (SELECT phone_number FROM v_contact_phones WHERE v_contact_phones.contact_uuid = v_contacts.contact_uuid AND phone_label = 'mobile' LIMIT 1 ) AS contact_mobile_number,
                 
                     v_contact_users.user_uuid 
                 
@@ -418,6 +418,8 @@
 		foreach($contacts as &$row) {
 
 			//add the extension details
+            if($row['contact_name_middle'] == null)
+                $row['contact_name_middle'] = '';
 			$array[$x] = $row;
 
 			//increment the row
