@@ -201,6 +201,31 @@ $text['label-no_api_key']['zh-cn'] = "No APIå¯†é’¥";
 $text['label-no_api_key']['ja-jp'] = "No API ã‚­ãƒ¼";
 $text['label-no_api_key']['ko-kr'] = "No API í‚¤";
 
+
+$text['label-no_mobile']['en-us'] = "No mobile phone";
+$text['label-no_mobile']['en-gb'] = "No mobile phone";
+$text['label-no_mobile']['ar-eg'] = "No mobile phone­";
+$text['label-no_mobile']['de-at'] = "No mobile phone";
+$text['label-no_mobile']['de-ch'] = "No mobile phone";
+$text['label-no_mobile']['de-de'] = "No mobile phone";
+$text['label-no_mobile']['es-cl'] = "No mobile phone";
+$text['label-no_mobile']['es-mx'] = "No mobile phone";
+$text['label-no_mobile']['fr-ca'] = "No mobile phone";
+$text['label-no_mobile']['fr-fr'] = "No mobile phone";
+$text['label-no_mobile']['he-il'] = "No mobile phone";
+$text['label-no_mobile']['it-it'] = "No mobile phone";
+$text['label-no_mobile']['nl-nl'] = "Geen mobiel nummer";
+$text['label-no_mobile']['pl-pl'] = "No mobile phone";
+$text['label-no_mobile']['pt-br'] = "No mobile phone";
+$text['label-no_mobile']['pt-pt'] = "No mobile phone";
+$text['label-no_mobile']['ro-ro'] = "No mobile phone";
+$text['label-no_mobile']['ru-ru'] = "No mobile phone";
+$text['label-no_mobile']['sv-se'] = "No mobile phone";
+$text['label-no_mobile']['uk-ua'] = "No mobile phone";
+$text['label-no_mobile']['zh-cn'] = "No mobile phone";
+$text['label-no_mobile']['ja-jp'] = "No mobile phone";
+$text['label-no_mobile']['ko-kr'] = "No mobile phone";
+
 $text['label-qrcode']['en-us'] = "Login QR Code";
 $text['label-qrcode']['en-gb'] = "Login QR Code";
 $text['label-qrcode']['ar-eg'] = "Login QR Code";
