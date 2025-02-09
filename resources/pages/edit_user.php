@@ -302,32 +302,48 @@
 			
 			//build QR Code data JSON		
 			$json = array(
-				"number" => (!empty($mobilePhoneNumber) ? escape($mobilePhoneNumber) : ""),
-				"server" => $user_row["domain_name"],
-				"username" => $user_row["username"],
-				"password" => "" ,
-                "apikey" => $user_row["api_key"],
+				"n" => (!empty($mobilePhoneNumber) ? escape($mobilePhoneNumber) : ""),
+				"s" => $user_row["domain_name"],
+				"u" => $user_row["username"],
+				"p" => "" ,
+                "a" => $user_row["api_key"],
 			);
-			$json = json_encode($json);
+            $json = json_encode($json);
 
             if(!is_file(dirname(__FILE__) . "/../public_key.pem"))
                 echo "Error finding public key... " . dirname(__FILE__) . "/../public_key.pem";
+
 			//encrypt the QR Code data
 			$publicKey = file_get_contents(dirname(__FILE__) . "/../public_key.pem");
 			if(!openssl_public_encrypt($json, $encryptedData, $publicKey))
 				echo "Encryption error...";
-            else {
+            else if(empty($mobilePhoneNumber)) {
+
+                echo $text['label-no_mobile'];
+
+            } else {
 		
                 try {
-                    $code = new QRCode (- 1, QRErrorCorrectLevel::M);
+                    $code = new QRCode (- 1, QRErrorCorrectLevel::H);
                     $code->addData(base64_encode($encryptedData));
                     $code->make();
 
-                    $img = new QRCodeImage ($code, $width=200, $height=200, $quality=70);
+                    $img = new QRCodeImage ($code, $width=512, $height=512, $quality=90);
                     $img->draw();
                     $image = $img->getImage();
                     $img->finish();
-                    echo "		<img src=\"data:image/jpeg;base64,".base64_encode($image)."\" style='margin-top: 0px; padding: 5px; background: white; max-width: 100%;'>\n";
+
+                    $src = imagecreatefromstring( $image );
+                    $dst = imagecreatetruecolor(572,572); 
+                    imagefill($dst, 0, 0, 0xFFFFFF); 
+                    imagecopyresampled($dst, $src, 30, 30, 0, 0, 512, 512, 512, 512);
+                    
+                    ob_start (); 
+                      imagejpeg($dst );
+                      $image = ob_get_contents(); 
+                    ob_end_clean (); 
+                    
+                    echo "		<img src=\"data:image/jpeg;base64,".base64_encode($image)."\" style='width: 300px; margin-top: 0px; padding: 5px; background: white; max-width: 100%;'>\n";
                 }
                 catch (Exception $error) {
                     echo $error;
