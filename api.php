@@ -47,11 +47,10 @@
                 OFFSET 
                     0";
  		
-		$prep_statement = $db->prepare(check_sql($sql));
-		$prep_statement->execute();
-		$result = $prep_statement->fetchAll(PDO::FETCH_ASSOC);
+        $database = new database;
+        $result = $database->select($sql, $null, 'all');
 		$result_count = count($result);
-		unset ($prep_statement, $sql);
+        unset($parameters);  
 		
 		$resultnew = array();
 		
@@ -119,12 +118,10 @@
 					//hide any results when a user has not been assigned an extension
 					$sql .= "and extension = 'disabled' ";
 				}
-			
-			$prep_statement = $db->prepare(check_sql($sql));
-			$prep_statement->execute();
-			$result = $prep_statement->fetchAll(PDO::FETCH_NAMED);
 
-			//echo json_encode($result[0], JSON_FORCE_OBJECT);
+            $database = new database;
+            $result = $database->select($sql, $null, 'all');
+            unset($parameters);  
 
 			if($_GET['device'] == "mobile")
 			{
@@ -405,13 +402,9 @@
                     contact_name_given 
                 ASC";
 
-
-
-        $prep_statement = $db->prepare($sql);
-        $prep_statement->execute();
-        $contacts = $prep_statement->fetchAll(PDO::FETCH_NAMED);
-        
-        unset ($prep_statement, $sql);
+        $database = new database;
+        $contacts = $database->select($sql, $null, 'all');
+        unset($parameters);  
 	
 		//build the response
 		$x = 0;
@@ -455,9 +448,11 @@
         $sql = "select outbound_caller_id_number from v_extensions ";
         $sql .= "where domain_uuid = '".$_SESSION['domain_uuid']."' ";
         $sql .= "and extension = '$src_ext' ";
-        $prep_statement = $db->prepare(check_sql($sql));
-        $prep_statement->execute();
-        $result = $prep_statement->fetchAll(PDO::FETCH_NAMED);
+
+        $database = new database;
+        $result = $database->select($sql, $null, 'all');
+        unset($parameters);  
+
         foreach ($result as &$row) {
                 $src_cid_number = $row["outbound_caller_id_number"];
                 $dest_cid_number = $row["outbound_caller_id_number"];
@@ -503,16 +498,18 @@
                 WHERE 
                     v_extensions.extension_uuid = v_extension_users.extension_uuid AND
                     v_extension_users.user_uuid = v_users.user_uuid AND
-                    v_users.user_uuid = '" . $_SESSION['user_uuid'] . "' AND
-                    v_extensions.domain_uuid = '" . $_SESSION['domain_uuid'] . "'
+                    v_users.user_uuid = :user_uuid AND
+                    v_extensions.domain_uuid = :domain_uuid
                 ORDER BY
                     v_extensions.extension
                 ASC
                 ;";		
-                
-        $prep_statement = $db->prepare(check_sql($sql));
-        $prep_statement->execute();
-        $extensions = $prep_statement->fetchAll(PDO::FETCH_NAMED);
+         
+        $parameters['domain_uuid'] = $_SESSION['domain_uuid'];
+        $parameters['user_uuid'] = $_SESSION['user_uuid'];
+        $database = new database;
+        $extensions = $database->select($sql, $parameters, 'all');
+        unset($parameters);                
 
         // Get User settings
         $sql = "SELECT user_setting_subcategory, user_setting_name, user_setting_value
@@ -523,11 +520,11 @@
                     v_user_settings.domain_uuid = '" . $_SESSION['domain_uuid'] . "' AND
                     v_user_settings.user_setting_category = 'callassist';";	
 
-    
-        $prep_statement = $db->prepare(check_sql($sql));
-        $prep_statement->execute();
-
-        $usersettings = $prep_statement->fetchAll(PDO::FETCH_NAMED);
+        $parameters['domain_uuid'] = $_SESSION['domain_uuid'];
+        $parameters['user_uuid'] = $_SESSION['user_uuid'];
+        $database = new database;
+        $usersettings = $database->select($sql, $parameters, 'all');
+        unset($parameters);  
 
         $usersettingsnew = array();	
         foreach ($usersettings as $setting)
