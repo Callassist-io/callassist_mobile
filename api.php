@@ -14,6 +14,27 @@
 
     if($action == "cdr")
     {
+
+	$allowRecording = false;
+
+
+	$settings_sql = "select user_setting_uuid, user_setting_category, user_setting_subcategory, user_setting_name, user_setting_value, user_setting_order, cast(user_setting_enabled as text), user_setting_description ";
+	$settings_sql .= "from v_user_settings ";
+	$settings_sql .= "where user_uuid = :user_uuid ";
+	$settings_sql .= "and user_setting_category = 'callassist' ";
+
+	$settings_parameters['user_uuid'] = $_SESSION['user_uuid'];
+	$database = new database;
+	$settings_row = $database->select($settings_sql, $settings_parameters);
+
+	foreach ($settings_row as $setting) {
+		if($setting['user_setting_subcategory'] == 'allowrecording')
+		{
+			$allowRecording = ($setting['user_setting_value'] == 'true' ? true : false);
+			break;
+		}
+	}
+
 			
         //set 24hr or 12hr clock
         define('TIME_24HR', 1);
@@ -86,6 +107,11 @@
 			$newline["hangup_cause"] = $callJson->hangup_cause;
 			$newline["duration"] = $callJson->duration;
 			
+			if($allowRecording && !empty($callJson->record_session) && $callJson->record_session == true && $callJson->record_file_size > 0)
+				$newline["recording"] = true;
+			else
+				$newline["recording"] = false;
+			
 			$resultnew[] = $newline;
 		}
 		
@@ -95,6 +121,101 @@
 		echo json_encode($result, JSON_FORCE_OBJECT);
 
     }
+	else if(
+		$_GET['action'] == "download" &&
+		isset($_GET['id'])
+	)
+    {
+
+
+	$obj = new xml_cdr;
+	$obj->download($_GET['id']);
+
+
+    }	else if(
+		$_GET['action'] == "voicemail"
+	)
+    {
+	$vm = new voicemail;
+	$vm->domain_uuid = $_SESSION['domain_uuid'];
+	if (!empty($voicemail_uuid) && is_uuid($voicemail_uuid)) {
+		$vm->voicemail_uuid = $voicemail_uuid;
+	}
+	else if (!empty($voicemail_id) && is_numeric($voicemail_id)) {
+		$vm->voicemail_id = $voicemail_id;
+	}
+	$vm->order_by = $order_by;
+	$vm->order = $order;
+	$voicemails = $vm->messages();
+
+	$result = [];
+
+	foreach ($voicemails as $vm) {
+	    if (empty($vm['messages'])) continue;
+
+	    foreach ($vm['messages'] as $msg) {
+
+	        // epoch ? nette datetime
+	        $datetime = date('Y-m-d H:i:s', $msg['created_epoch']);
+
+		if($msg['file_size'] > 0)
+		{
+
+	        $result[] = [
+	            'voicemail_id' => $msg['voicemail_id'],
+	            'message_length' => $msg['message_length_label'],
+	            'caller_id_number' => $msg['caller_id_number'],
+	            'caller_id_name' => $msg['caller_id_name'],
+	            'created_date' => $datetime,
+	            'voicemail_uuid' => $msg['voicemail_uuid'],
+	            'voicemail_message_uuid' => $msg['voicemail_message_uuid'],
+	            'sort_epoch' => $msg['created_epoch'] // alleen voor sort
+	        ];
+		}
+	    }
+	}
+
+	// sorteren: nieuwste bovenaan
+	usort($result, function ($a, $b) {
+	    return $b['sort_epoch'] <=> $a['sort_epoch'];
+	});
+
+	// sort veld verwijderen
+	$result = array_map(function ($item) {
+	    unset($item['sort_epoch']);
+	    return $item;
+	}, $result);
+
+	// JSON output
+	echo json_encode($result, JSON_PRETTY_PRINT);
+
+    }
+
+/// /app/callassist_mobile/api.php?action=downloadvoicemail&id=209&voicemail_uuid=e3bd45f4-c7a3-48dd-826c-32b9119bfc5f&uuid=dbc5cf4c-cc07-48bd-8fc9-2a5ba6aa5a24
+
+	else if (
+		$_GET['action'] == "downloadvoicemail"
+		&& !empty($_REQUEST["id"]) && is_numeric($_REQUEST["id"])
+		&& !empty($_REQUEST["uuid"]) && is_uuid($_REQUEST["uuid"])
+		&& !empty($_REQUEST["voicemail_uuid"]) && is_uuid($_REQUEST["voicemail_uuid"])
+	) {
+		$voicemail = new voicemail;
+		$voicemail->domain_uuid = $_SESSION['domain_uuid'];
+		$voicemail->type = 'bin';
+		$voicemail->voicemail_id = $_REQUEST['id'];
+		$voicemail->voicemail_uuid = $_REQUEST['voicemail_uuid'];
+		$voicemail->voicemail_message_uuid = $_REQUEST['uuid'];
+
+print_r($voicemail);
+		if(!$voicemail->message_download()) {
+			echo "unable to download voicemail";
+		}
+		unset($voicemail);
+		exit;
+	}
+
+
+
     else if(
 		$_GET['action'] == "getcallrouting" &&
 		isset($_GET['ext'])
@@ -431,7 +552,8 @@
 		}
 
         echo json_encode($array);
-    } else if($_GET['action'] == "c2c")
+    } 
+	else if($_GET['action'] == "c2c")
     {
         $src = check_str($_REQUEST['src']);
         $src = str_replace(array('.', '(', ')', '-', ' ', '+'), '', $src);
@@ -481,34 +603,48 @@
         echo exec('php resources/c2c_socket.php -i "'.$_SESSION['event_socket_ip_address'].'" -p "'.$_SESSION['event_socket_port'].'" -w "'.$_SESSION['event_socket_password'].'" -c "'.$switch_cmd.'" > /dev/null &');
         echo "Request dispatched";
 
+    } else if($_GET['action'] == "registerdevice")
+    {
+
+	// Recive JWT token $_GET['token'];
+
+    } else if($_GET['action'] == "unregisterdevice")
+    {
+
     } else {
 
  //return user details
         // Performing SQL query
-        $sql = "SELECT 
-                    v_users.username,
-                    v_extensions.extension,
-                    v_extensions.extension_uuid,
-                    v_extensions.outbound_caller_id_number,
-                    '" . $_SESSION['domain_name'] . "' as accountcode,
-                    v_extensions.enabled,
-                    v_extensions.description
-                FROM
-                    v_extensions, v_extension_users, v_users
-                WHERE 
-                    v_extensions.extension_uuid = v_extension_users.extension_uuid AND
-                    v_extension_users.user_uuid = v_users.user_uuid AND
-                    v_users.user_uuid = :user_uuid AND
-                    v_extensions.domain_uuid = :domain_uuid
-                ORDER BY
-                    v_extensions.extension
-                ASC
-                ;";		
+	$sql = "SELECT 
+            v_users.username,
+            v_extensions.extension,
+            v_extensions.extension_uuid,
+            v_extensions.outbound_caller_id_number,
+            '" . $_SESSION['domain_name'] . "' as accountcode,
+            v_extensions.enabled,
+            v_extensions.description,
+            v_voicemails.voicemail_enabled
+        FROM
+            v_extensions
+        JOIN v_extension_users 
+            ON v_extensions.extension_uuid = v_extension_users.extension_uuid
+        JOIN v_users 
+            ON v_extension_users.user_uuid = v_users.user_uuid
+        LEFT JOIN v_voicemails 
+            ON v_voicemails.voicemail_id = COALESCE(NULLIF(v_extensions.number_alias, ''), v_extensions.extension)
+            AND v_voicemails.domain_uuid = v_extensions.domain_uuid
+        WHERE 
+            v_users.user_uuid = :user_uuid AND
+            v_extensions.domain_uuid = :domain_uuid
+        ORDER BY
+            v_extensions.extension ASC;
+	";	
          
         $parameters['domain_uuid'] = $_SESSION['domain_uuid'];
         $parameters['user_uuid'] = $_SESSION['user_uuid'];
         $database = new database;
         $extensions = $database->select($sql, $parameters, 'all');
+
         unset($parameters);                
 
         // Get User settings
@@ -516,26 +652,27 @@
                 FROM
                     v_user_settings
                 WHERE 
-                    v_user_settings.user_uuid = '" . $_SESSION['user_uuid'] . "' AND
-                    v_user_settings.domain_uuid = '" . $_SESSION['domain_uuid'] . "' AND
-                    v_user_settings.user_setting_category = 'callassist';";	
+                    user_uuid = :user_uuid AND
+                    domain_uuid = :domain_uuid AND
+                    user_setting_category = 'callassist';";	
 
         $parameters['domain_uuid'] = $_SESSION['domain_uuid'];
         $parameters['user_uuid'] = $_SESSION['user_uuid'];
         $database = new database;
         $usersettings = $database->select($sql, $parameters, 'all');
+
         unset($parameters);  
 
         $usersettingsnew = array();	
         foreach ($usersettings as $setting)
         {
-            if($setting["user_setting_subcategory"] == "numbers" && !empty($setting["user_setting_value"]))
+            if($setting["user_setting_subcategory"] == "numbers" && !empty($setting["user_setting_value"]) && !in_array($setting["user_setting_value"], $usersettingsnew["numbers"]))
                 $usersettingsnew["numbers"][] = $setting["user_setting_value"];
         }		
 
         foreach ($extensions as $extension)
         {
-            if(!empty($extension["outbound_caller_id_number"]))
+            if(!empty($extension["outbound_caller_id_number"])  && !in_array($extension["outbound_caller_id_number"], $usersettingsnew["numbers"]))
                 $usersettingsnew["numbers"][] = $extension["outbound_caller_id_number"];
         }
     
@@ -543,8 +680,9 @@
         foreach ($extensions as $extension)
         {
             $extension["settings"] = $usersettingsnew;
+            $extension["voicemail_enabled"] = filter_var($extension["voicemail_enabled"], FILTER_VALIDATE_BOOLEAN);
             $extension["enabled"] = filter_var($extension["enabled"], FILTER_VALIDATE_BOOLEAN);
-            if($extension["outbound_caller_id_number"] == null)
+            if($extension["outbound_caller_id_number"] == null )
                 $extension["outbound_caller_id_number"] = "";
             $extensionsnew[] = $extension;
         }
