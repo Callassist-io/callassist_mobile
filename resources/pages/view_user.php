@@ -48,6 +48,9 @@
 	$mobilePhoneNumberUuid = null;
 	$extaOutboundNumbers = array();
 	$extaOutboundNumbersUuid = null;
+       $allowRecording = 'false';
+       $allowRecordingUuid = null;
+
 
 	foreach ($settings_row as $setting) {
 		if($setting['user_setting_subcategory'] == 'mobilephonenumber')
@@ -59,6 +62,11 @@
 		{
 			$extaOutboundNumbers = array_merge($extaOutboundNumbers, explode(',',$setting['user_setting_value']));
 			$extaOutboundNumbersUuid = $setting['user_setting_uuid'];
+		}
+		if($setting['user_setting_subcategory'] == 'allowrecording')
+		{
+			$allowRecording = $setting['user_setting_value'];
+			$allowRecordingUuid = $setting['user_setting_uuid'];
 		}
 	}
 
@@ -176,6 +184,13 @@
 		echo "		<td class='vtable'>";
 		echo escape($mobilePhoneNumber);
 		echo "      </td>\n";
+		echo "	</tr>\n";
+
+		echo "	<tr>\n";
+		echo "		<td class='vncell' valign='top'>" . $text['label-allow_recording'] . "</td>\n";
+		echo "		<td class='vtable'>";
+		echo ($allowRecording == 'true') ? $text['label-true'] : $text['label-false'];
+		echo "		</td>\n";
 		echo "	</tr>\n";
 			
 	

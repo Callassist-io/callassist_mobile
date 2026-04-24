@@ -51,6 +51,10 @@
     $extaOutboundNumbers = array();
     $extaOutboundNumbersUuid = null;
 
+    $allowRecording = 'false';
+    $allowRecordingUuid = null;
+
+
     foreach ($settings_row as $setting) {
         if($setting['user_setting_subcategory'] == 'mobilephonenumber')
         {
@@ -62,10 +66,16 @@
             $extaOutboundNumbers = array_merge($extaOutboundNumbers, explode(',',$setting['user_setting_value']));
             $extaOutboundNumbersUuid = $setting['user_setting_uuid'];
         }
+        if($setting['user_setting_subcategory'] == 'allowrecording')
+        {
+            $allowRecording = $setting['user_setting_value'];
+            $allowRecordingUuid = $setting['user_setting_uuid'];
+        }
+
     }
 
     //delete the outbound number from the user
-	if (!empty($_GET["a"]) && $_GET["a"] == "delete" && !empty($_GET['extaoutboundnumber']) && is_uuid($user_uuid) ) 
+    if (!empty($_GET["a"]) && $_GET["a"] == "delete" && !empty($_GET['extaoutboundnumber']) && is_uuid($user_uuid) ) 
     {
     
         if(is_uuid($extaOutboundNumbersUuid))
@@ -96,7 +106,7 @@
 			header("Location: callassist.php?id=".urlencode($user_uuid));
 			exit;
         }
-	}
+    }
 
     //delete the extension from the user
 	if (!empty($_GET["a"]) && $_GET["a"] == "delete" && !empty($_GET['extensionuseruuid']) && is_uuid($user_uuid) ) 
@@ -181,25 +191,42 @@
         $array['user_settings'][0]['user_setting_enabled'] = true;
         $array['user_settings'][0]['user_setting_description'] = "";
 
+        if(!is_uuid($allowRecordingUuid))
+            $array['user_settings'][1]['user_setting_uuid'] = uuid();
+        else
+            $array['user_settings'][1]['user_setting_uuid'] = $allowRecordingUuid;
+        
+        $array['user_settings'][1]['user_uuid'] = $user_uuid;
+        $array['user_settings'][1]['domain_uuid'] = $user_row['domain_uuid'];
+        $array['user_settings'][1]['user_setting_category'] = "callassist";
+        $array['user_settings'][1]['user_setting_subcategory'] = "allowrecording";
+        $array['user_settings'][1]['user_setting_name'] = "boolean";
+        $array['user_settings'][1]['user_setting_value'] = ($_POST['allowRecording'] == 'true'? 'true' : 'false');
+        
+        $array['user_settings'][1]['user_setting_order'] = "000";
+        $array['user_settings'][1]['user_setting_enabled'] = true;
+        $array['user_settings'][1]['user_setting_description'] = "";
+
+
 
         if(!empty($_POST['outbound_number']))
         {
             $extaOutboundNumbers[] = $_POST['outbound_number'];
 
             if(!is_uuid($extaOutboundNumbersUuid))
-                $array['user_settings'][1]['user_setting_uuid'] = uuid();
+                $array['user_settings'][2]['user_setting_uuid'] = uuid();
             else
-                $array['user_settings'][1]['user_setting_uuid'] = $extaOutboundNumbersUuid;
+                $array['user_settings'][2]['user_setting_uuid'] = $extaOutboundNumbersUuid;
             
-            $array['user_settings'][1]['user_uuid'] = $user_uuid;
-            $array['user_settings'][1]['domain_uuid'] = $user_row['domain_uuid'];
-            $array['user_settings'][1]['user_setting_category'] = "callassist";
-            $array['user_settings'][1]['user_setting_subcategory'] = "numbers";
-            $array['user_settings'][1]['user_setting_name'] = "array";
-            $array['user_settings'][1]['user_setting_value'] = implode(',', $extaOutboundNumbers);
-            $array['user_settings'][1]['user_setting_order'] = "000";
-            $array['user_settings'][1]['user_setting_enabled'] = true;
-            $array['user_settings'][1]['user_setting_description'] = "";
+            $array['user_settings'][2]['user_uuid'] = $user_uuid;
+            $array['user_settings'][2]['domain_uuid'] = $user_row['domain_uuid'];
+            $array['user_settings'][2]['user_setting_category'] = "callassist";
+            $array['user_settings'][2]['user_setting_subcategory'] = "numbers";
+            $array['user_settings'][2]['user_setting_name'] = "array";
+            $array['user_settings'][2]['user_setting_value'] = implode(',', $extaOutboundNumbers);
+            $array['user_settings'][2]['user_setting_order'] = "000";
+            $array['user_settings'][2]['user_setting_enabled'] = true;
+            $array['user_settings'][2]['user_setting_description'] = "";
         }
     
 
@@ -292,6 +319,7 @@
     echo (strpos($user_row['group_names'], $groupName) !== false) ? $text['label-true'] : $text['label-false'];
     echo "		</td>\n";
 	echo "	</tr>\n";
+
 
 		if ( !empty($user_row['api_key']) && strpos($user_row['group_names'], $groupName) !== false)
 		{
@@ -408,6 +436,30 @@
 	echo "	</tr>\n";
         
 
+	echo "<tr>\n";
+	echo "<td class='vncell' valign='top' align='left' nowrap='nowrap'>\n";
+	echo "	".$text['label-allow_recording']."\n";
+	echo "</td>\n";
+	echo "<td class='vtable' align='left'>\n";
+
+	if (substr($_SESSION['theme']['input_toggle_style']['text'], 0, 6) == 'switch') {
+		echo "	<label class='switch'>\n";
+		echo "		<input type='checkbox' id='allowRecording' name='allowRecording' value='true' ".($allowRecording == 'true' ? "checked='checked'" : null)." onchange='this.form.submit()'>\n";
+		echo "		<span class='slider'></span>\n";
+		echo "	</label>\n";
+	}
+	else {
+		echo "	<select class='formfld' id='allowRecording' name='allowRecording' onchange='this.form.submit()'>\n";
+		echo "		<option value='true' ".($allowRecording == 'true' ? "selected='selected'" : null).">".$text['option-true']."</option>\n";
+		echo "		<option value='false' ".($allowRecording  == 'false' ? "selected='selected'" : null).">".$text['option-false']."</option>\n";
+		echo "	</select>\n";
+	}
+	echo "</td>\n";
+	echo "</tr>\n";
+
+
+
+
 	echo "	<tr>\n";
 	echo "		<td class='vncell' valign='top'>" . $text['label-extensions'] . "</td>\n";
 	echo "		<td class='vtable'>";
@@ -513,6 +565,7 @@
             }
         }
     }
+
     echo "</table>\n";
 
 //get the list
