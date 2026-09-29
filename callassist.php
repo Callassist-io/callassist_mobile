@@ -34,11 +34,10 @@
 	echo "	<div class='actions'>\n";
 
 //check permissions for action bar
-/*
-	if (permission_exists('callassist_manage')) {
-
+	if (permission_exists('callassist_manage') && if_group('superadmin')) {
+		echo button::create(['type'=>'button','label'=>$text['button-push_status'],'icon'=>'check','collapse'=>'never','link'=>'push_status.php']);
+		echo "<span style='padding-right: 30px;'></span>\n";
 	}
-*/
 
 //show app download icons
 	echo "		<a href='https://play.google.com/store/apps/details?id=com.esselink.callassist' target='_blank'><img src='/app/callassist_mobile/resources/images/GetItOnGooglePlayStore.png' style='width: 100px; height: auto;' /></a>&nbsp;\n";

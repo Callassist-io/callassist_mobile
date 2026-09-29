@@ -395,4 +395,35 @@ $text['label-outbound_numbers']['zh-cn'] = "Outbound numbers";
 $text['label-outbound_numbers']['ja-jp'] = "Outbound numbers";
 $text['label-outbound_numbers']['ko-kr'] = "Outbound numbers";
 
+$push_status_translations = [
+    'button-push_status' => ['Push status', 'Pushstatus'],
+    'title-push_status' => ['Push configuration', 'Pushconfiguratie'],
+    'label-push_installed_lua' => ['Installed Lua', 'Geinstalleerde Lua'],
+    'label-push_lua_version' => ['Lua version', 'Lua-versie'],
+    'label-push_lua_config' => ['FreeSWITCH Lua configuration', 'FreeSWITCH Lua-configuratie'],
+    'label-push_hook' => ['CHANNEL_OUTGOING hook', 'CHANNEL_OUTGOING-hook'],
+    'label-push_ok' => ['OK', 'In orde'],
+    'label-push_missing' => ['File missing', 'Bestand ontbreekt'],
+    'label-push_unreadable' => ['Not readable by PHP', 'Niet leesbaar voor PHP'],
+    'label-push_outdated' => ['Differs from the bundled version; copy the Lua again', 'Wijkt af van de meegeleverde versie; kopieer de Lua opnieuw'],
+    'label-push_invalid_xml' => ['Invalid XML', 'Ongeldige XML'],
+    'label-push_hook_missing' => ['Hook missing or points to another Lua script', 'Hook ontbreekt of verwijst naar een andere Lua'],
+    'label-push_hook_duplicate' => ['Hook appears more than once in the configuration', 'Hook staat meerdere keren in de configuratie'],
+    'label-push_xml_missing' => ['PHP XML extension is unavailable', 'PHP XML-extensie ontbreekt'],
+    'button-push_apply' => ['Install or repair Lua and hook', 'Lua en hook installeren of herstellen'],
+    'description-push_apply' => ['Copies the Lua script when needed and updates lua.conf.xml. A backup is made before changing the XML.', 'Kopieert de Lua indien nodig en werkt lua.conf.xml bij. Voor een XML-wijziging wordt een backup gemaakt.'],
+    'message-push_applied' => ['Lua installed and hook checked.', 'Lua geinstalleerd en hook gecontroleerd.'],
+    'message-push_error' => ['Push configuration could not be applied:', 'Pushconfiguratie kon niet worden toegepast:'],
+    'description-push_status' => [
+        'This check reads files on disk. It cannot confirm whether mod_lua has loaded the hook. Restart FreeSWITCH after changing lua.conf.xml; active calls will be interrupted.',
+        'Deze controle leest bestanden op schijf. Of mod_lua de hook al geladen heeft, kan hiermee niet worden vastgesteld. Herstart FreeSWITCH na een wijziging aan lua.conf.xml; dit onderbreekt actieve gesprekken.',
+    ],
+];
+foreach ($push_status_translations as $key => $translation) {
+    foreach (['en-us', 'en-gb', 'ar-eg', 'de-at', 'de-ch', 'de-de', 'el-gr', 'es-cl', 'es-mx', 'fr-ca', 'fr-fr', 'he-il', 'it-it', 'ka-ge', 'pl-pl', 'pt-br', 'pt-pt', 'ro-ro', 'ru-ru', 'sv-se', 'tr-tr', 'uk-ua', 'zh-cn', 'ja-jp', 'ko-kr'] as $locale) {
+        $text[$key][$locale] = $translation[0];
+    }
+    $text[$key]['nl-nl'] = $translation[1];
+}
+unset($push_status_translations, $key, $translation, $locale);
 ?>
