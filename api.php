@@ -15,110 +15,97 @@
     if($action == "cdr")
     {
 
-	$allowRecording = false;
+    $allowRecording = false;
 
+    // settings ophalen
+    $settings_sql = "select user_setting_subcategory, user_setting_value 
+                     from v_user_settings 
+                     where user_uuid = :user_uuid 
+                     and user_setting_category = 'callassist'";
 
-	$settings_sql = "select user_setting_uuid, user_setting_category, user_setting_subcategory, user_setting_name, user_setting_value, user_setting_order, cast(user_setting_enabled as text), user_setting_description ";
-	$settings_sql .= "from v_user_settings ";
-	$settings_sql .= "where user_uuid = :user_uuid ";
-	$settings_sql .= "and user_setting_category = 'callassist' ";
+    $settings_parameters['user_uuid'] = $_SESSION['user_uuid'];
+    $database = new database;
+    $settings_row = $database->select($settings_sql, $settings_parameters, 'all');
 
-	$settings_parameters['user_uuid'] = $_SESSION['user_uuid'];
-	$database = new database;
-	$settings_row = $database->select($settings_sql, $settings_parameters);
-
-	foreach ($settings_row as $setting) {
-		if($setting['user_setting_subcategory'] == 'allowrecording')
-		{
-			$allowRecording = ($setting['user_setting_value'] == 'true' ? true : false);
-			break;
-		}
-	}
-
-			
-        //set 24hr or 12hr clock
-        define('TIME_24HR', 1);
-
-        $limit = 50;
-
-        $sql_where_ors = array();        
-        foreach ($_SESSION['user']['extension'] as $row) { 
-            if(!empty($row['extension_uuid']))
-                $sql_where_ors[] = "extension_uuid = '" . $row['extension_uuid'] . "'"; 
+    foreach ($settings_row as $setting) {
+        if ($setting['user_setting_subcategory'] == 'allowrecording') {
+            $allowRecording = ($setting['user_setting_value'] === 'true');
+            break;
         }
-        $sql = "SELECT
-                    xml_cdr_uuid as uuid,
-                    caller_id_number,
-                    destination_number,
-                    json
-                FROM 
-                    v_xml_cdr 
-                WHERE
+    }
 
-                    domain_uuid = '".$domain_uuid."' AND
-                    hangup_cause <> 'LOSE_RACE' AND
-                    (cc_side is null or cc_side != 'agent') AND
+    define('TIME_24HR', 1);
+    $limit = 50;
 
-                    " . "( ".implode(" OR ", $sql_where_ors)." )" . "
+    // extensions verzamelen
+    $extension_uuids = [];
+    foreach ($_SESSION['user']['extension'] as $row) {
+        if (!empty($row['extension_uuid'])) {
+            $extension_uuids[] = $row['extension_uuid'];
+        }
+    }
 
-                ORDER BY 
-                    start_stamp DESC 
-                LIMIT 
-                    " . $limit . "
-                OFFSET 
-                    0";
- 		
-        $database = new database;
-        $result = $database->select($sql, $null, 'all');
-		$result_count = count($result);
-        unset($parameters);  
-		
-		$resultnew = array();
-		
-		foreach ($result as $call) {
-			$callJson = json_decode($call["json"]);
-			
-			$callJson = $callJson->variables;
-			
-			$newline = array();
-			
-			$newline["uuid"] = $call["uuid"];
-			$newline["start_stamp"] = urldecode($callJson->start_stamp);
-			if(!empty($callJson->call_direction))
-				$newline["direction"] = $callJson->call_direction;
-			else
-				$newline["direction"] = $callJson->direction;
-			
-			if(!empty($callJson->caller_id_name))
-				$newline["caller_id_name"] = iconv("UTF-8","UTF-8//IGNORE",urldecode($callJson->caller_id_name));
-			else
-				$newline["caller_id_name"] = iconv("UTF-8","UTF-8//IGNORE",urldecode($callJson->origination_caller_id_name));
-			
-			if(!empty($callJson->caller_id_number))
-				$newline["caller_id_number"] = $callJson->caller_id_number;
-			else
-				$newline["caller_id_number"] = $call["caller_id_number"];
+    if (empty($extension_uuids)) {
+        echo json_encode([]);
+        exit;
+    }
 
-			if(!empty($callJson->caller_destination))
-				$newline["destination_number"] = $callJson->caller_destination;
-			else
-				$newline["destination_number"] = $call["destination_number"];			
-				
-			$newline["hangup_cause"] = $callJson->hangup_cause;
-			$newline["duration"] = $callJson->duration;
-			
-			if($allowRecording && !empty($callJson->record_session) && $callJson->record_session == true && $callJson->record_file_size > 0)
-				$newline["recording"] = true;
-			else
-				$newline["recording"] = false;
-			
-			$resultnew[] = $newline;
-		}
-		
-		$result = $resultnew;
-		$result_count = count($result);
-			
-		echo json_encode($result, JSON_FORCE_OBJECT);
+    // SQL
+    $sql = "SELECT
+                xml_cdr_uuid as uuid,
+                start_stamp,
+                direction,
+                caller_id_name,
+                caller_id_number,
+                destination_number,
+                hangup_cause,
+                billsec as duration,
+                record_path,
+                record_name
+            FROM v_xml_cdr
+            WHERE
+                domain_uuid = :domain_uuid
+                AND hangup_cause <> 'LOSE_RACE'
+                AND (cc_side IS NULL OR cc_side != 'agent')
+                AND leg = 'a'
+                AND extension_uuid IN ('" . implode("','", $extension_uuids) . "')
+            ORDER BY start_stamp DESC
+            LIMIT :limit";
+
+    $parameters = [];
+    $parameters['domain_uuid'] = $domain_uuid;
+    $parameters['limit'] = $limit;
+
+    $database = new database;
+    $result = $database->select($sql, $parameters, 'all');
+
+    $resultnew = [];
+
+    foreach ($result as $call) {
+
+        $newline = [];
+
+        $newline["uuid"] = $call["uuid"];
+        //$newline["start_stamp"] = $call["start_stamp"];
+	 $newline["start_stamp"] = !empty($call["start_stamp"]) ? date('Y-m-d H:i:s', strtotime($call["start_stamp"])) : "";
+        $newline["direction"] = $call["direction"];
+        $newline["caller_id_name"] = $call["caller_id_name"];
+        $newline["destination_number"] = $call["destination_number"];
+        $newline["caller_id_number"] = $call["caller_id_number"];
+        $newline["hangup_cause"] = $call["hangup_cause"];
+        $newline["duration"] = (int)$call["duration"];
+
+        $newline["recording"] = (
+            $allowRecording &&
+            !empty($call["record_path"]) &&
+            !empty($call["record_name"])
+        );
+
+        $resultnew[] = $newline;
+    }
+
+    echo json_encode($resultnew, JSON_FORCE_OBJECT);
+
 
     }
 	else if(
@@ -127,9 +114,10 @@
 	)
     {
 
-
 	$obj = new xml_cdr;
-	$obj->download($_GET['id']);
+	$obj->recording_uuid = $_GET['id'];
+	$obj->binary = isset($_GET['t']) && $_GET['t'] == 'bin' ? true : false;
+	$obj->download();
 
 
     }	else if(
@@ -195,23 +183,28 @@
 
 	else if (
 		$_GET['action'] == "downloadvoicemail"
-		&& !empty($_REQUEST["id"]) && is_numeric($_REQUEST["id"])
-		&& !empty($_REQUEST["uuid"]) && is_uuid($_REQUEST["uuid"])
-		&& !empty($_REQUEST["voicemail_uuid"]) && is_uuid($_REQUEST["voicemail_uuid"])
+		&& !empty($_REQUEST["id"]) 
+		&& !empty($_REQUEST["uuid"])
+		&& !empty($_REQUEST["voicemail_uuid"]) 
 	) {
-		$voicemail = new voicemail;
-		$voicemail->domain_uuid = $_SESSION['domain_uuid'];
-		$voicemail->type = 'bin';
-		$voicemail->voicemail_id = $_REQUEST['id'];
-		$voicemail->voicemail_uuid = $_REQUEST['voicemail_uuid'];
-		$voicemail->voicemail_message_uuid = $_REQUEST['uuid'];
 
-print_r($voicemail);
-		if(!$voicemail->message_download()) {
-			echo "unable to download voicemail";
-		}
-		unset($voicemail);
-		exit;
+    $domain_uuid = $_SESSION['domain_uuid'];
+    $domain_name = $_SESSION['domain_name']; // <-- DEZE MIS JE
+
+    $voicemail = new voicemail;
+    $voicemail->domain_uuid = $domain_uuid;
+    $voicemail->type = 'bin';
+    $voicemail->voicemail_id = $_REQUEST['id'];
+    $voicemail->voicemail_uuid = $_REQUEST['voicemail_uuid'];
+    $voicemail->voicemail_message_uuid = $_REQUEST['uuid'];
+
+    if (!$voicemail->message_download($domain_name)) {
+        echo "unable to download voicemail";
+    }
+
+    unset($voicemail);
+    exit;
+
 	}
 
 
@@ -295,7 +288,11 @@ print_r($voicemail);
         
 
     //add the dialplan permission
-        $p = new permissions;
+if (method_exists('permissions', 'new')) {
+    $p = permissions::new();   // nieuwe Fusion
+} else {
+    $p = new permissions;      // oude Fusion
+}
         $p->add("extension_edit", "temp");
         
         $database = new database;
@@ -307,8 +304,14 @@ print_r($voicemail);
         $p->delete("extension_edit", "temp");
 
         //clear the cache
-        $cache = new cache;
-        $cache->delete("directory:".$extension."@".$_SESSION['domain_name']);
+	$sql = "select extension, number_alias, user_context from v_extensions ";
+	$sql .= "where extension_uuid = :extension_uuid ";
+	$parameters['extension_uuid'] = $extension_uuid;
+	$database = new database;
+	$extension = $database->select($sql, $parameters, 'row');
+	$cache = new cache;
+	$cache->delete("directory:".$extension["extension"]."@".$extension["user_context"]);
+	$cache->delete("directory:".$extension["number_alias"]."@".$extension["user_context"]);
     
         echo "Outbound CallerID:" . $outbound_caller_id_number;
     } else if(
@@ -318,32 +321,35 @@ print_r($voicemail);
         isset($_GET['status']) 
     ) {
 
-        $extension_uuid = check_str($_GET['extension_uuid']);
-        $extension = check_str($_GET['extension']);
-        $dnd_enabled = check_str($_GET['status']);
-        if(!($dnd_enabled == "true"))
-            $dnd_enabled = "false";
+$extension_uuid = check_str($_GET['extension_uuid'] ?? '');
+$extension = check_str($_GET['extension'] ?? '');
 
-        $dnd = new do_not_disturb;
-        $dnd->domain_uuid = $_SESSION['domain_uuid'];
-        $dnd->domain_name = $_SESSION['domain_name'];
-        $dnd->extension_uuid = $extension_uuid;
-        $dnd->extension = $extension;
-        $dnd->enabled = $dnd_enabled;
-        $dnd->set();
-        $dnd->user_status();
-        unset($dnd);
+// boolean fix
+$dnd_enabled = filter_var($_GET['status'] ?? false, FILTER_VALIDATE_BOOLEAN);
+$dnd_enabled = $dnd_enabled ? 'true' : 'false';
 
-        //clear the cache
-        $cache = new cache;
-        $cache->delete("directory:".$extension."@".$_SESSION['domain_name']);
-        if(strlen($number_alias) > 0){
-            $cache->delete("directory:".$number_alias."@".$_SESSION['domain_name']);
-        }
+// DND object (zoals origineel)
+$dnd = new do_not_disturb;
+$dnd->domain_uuid = $_SESSION['domain_uuid'];
+$dnd->domain_name = $_SESSION['domain_name'];
+$dnd->extension_uuid = $extension_uuid;
+$dnd->extension = $extension;
+$dnd->enabled = $dnd_enabled;
+$dnd->set();
+$dnd->user_status();
+unset($dnd);
 
+	// Clear cache
+	$sql = "select extension, number_alias, user_context from v_extensions ";
+	$sql .= "where extension_uuid = :extension_uuid ";
+	$parameters['extension_uuid'] = $extension_uuid;
+	$database = new database;
+	$extension = $database->select($sql, $parameters, 'row');
+	$cache = new cache;
+	$cache->delete("directory:".$extension["extension"]."@".$extension["user_context"]);
+	$cache->delete("directory:".$extension["number_alias"]."@".$extension["user_context"]);
 
-        echo "DND:" . $dnd_enabled;
-
+echo "DND:" . $dnd_enabled;
 
     } else if(
         $_GET['action'] == "setforwardall" && 
@@ -352,103 +358,108 @@ print_r($voicemail);
         isset($_GET['status']) 
     ) {
 
-        $extension_uuid = check_str($_GET['extension_uuid']);
-        $forward_all_enabled = check_str($_GET['status']);
-        if(!($forward_all_enabled == "true"))
-            $forward_all_enabled = "false";
-        $forward_all_destination = check_str($_GET['dest']);
+$extension_uuid = check_str($_GET['extension_uuid'] ?? '');
 
+// boolean fix
+$forward_all_enabled = filter_var($_GET['status'] ?? false, FILTER_VALIDATE_BOOLEAN);
+$forward_all_enabled = $forward_all_enabled ? 'true' : 'false';
 
-        //$forward_all_destination = preg_replace('#[^\*0-9]#', '', $forward_all_destination);
-        $forward_all_destination = str_replace("+", "", $forward_all_destination);
-        if (strpos($forward_all_destination, '0') === 0)
-            $forward_all_destination = "31" . ltrim($forward_all_destination, "0");
+// destination fix
+$forward_all_destination = check_str($_GET['dest'] ?? '');
 
+// array fix (index 0 gebruiken, geen [])
+$array = [];
+$array['extensions'][0]['domain_uuid'] = $_SESSION['domain_uuid'];
+$array['extensions'][0]['extension_uuid'] = $extension_uuid;
+$array['extensions'][0]['forward_all_enabled'] = $forward_all_enabled;
+$array['extensions'][0]['forward_all_destination'] = $forward_all_destination;
 
-        $extensions['domain_uuid'] = $_SESSION['domain_uuid'];
-        $extensions['extension_uuid'] = $extension_uuid;
-        $extensions['forward_all_enabled'] = $forward_all_enabled;
-        $extensions['forward_all_destination'] = $forward_all_destination;
+// permissions
+if (method_exists('permissions', 'new')) {
+    $p = permissions::new();   // nieuwe Fusion
+} else {
+    $p = new permissions;      // oude Fusion
+}
+$p->add("extension_edit", "temp");
 
+// save
+$database = new database;
+$database->app_name = 'call_routing';
+$database->app_uuid = '19806921-e8ed-dcff-b325-dd3e5da4959d';
+$database->save($array);
 
-        $array['extensions'][] = $extensions;
+// permission cleanup
+$p->delete("extension_edit", "temp");
 
+// cache clear
+	$sql = "select extension, number_alias, user_context from v_extensions ";
+	$sql .= "where extension_uuid = :extension_uuid ";
+	$parameters['extension_uuid'] = $extension_uuid;
+	$database = new database;
+	$extension = $database->select($sql, $parameters, 'row');
+	$cache = new cache;
+	$cache->delete("directory:".$extension["extension"]."@".$extension["user_context"]);
+	$cache->delete("directory:".$extension["number_alias"]."@".$extension["user_context"]);
 
-        //add the dialplan permission
-        $p = new permissions;
-        $p->add("extension_edit", "temp");
-
-        $database = new database;
-        $database->app_name = 'call_routing';
-        $database->app_uuid = '19806921-e8ed-dcff-b325-dd3e5da4959d';
-        $database->save($array);
-
-        //remove the temporary permission
-        $p->delete("extension_edit", "temp");
-
-        //clear the cache	
-        $sql = "select extension, number_alias, user_context from v_extensions ";
-        $sql .= "where extension_uuid = :extension_uuid ";
-        $parameters['extension_uuid'] = $extension_uuid;
-        $database = new database;
-        $extension = $database->select($sql, $parameters, 'row');
-        $cache = new cache;
-        $cache->delete("directory:".$extension["extension"]."@".$_SESSION['domain_name']);
-        $cache->delete("directory:".$extension["number_alias"]."@".$_SESSION['domain_name']);
-
-
-
-        echo "Forward ALL:" . $forward_all_enabled;
-
+echo "Forward ALL:" . $forward_all_enabled;
 
     } else if($_GET['action'] == "setbusy" && 
         isset($_GET['extension_uuid']) &&
         isset($_GET['dest']) &&
         isset($_GET['status']) ) {
 
-        $extension_uuid = check_str($_GET['extension_uuid']);
-        $forward_busy_enabled = check_str($_GET['status']);
-        if(!($forward_busy_enabled == "true"))
-            $forward_busy_enabled = "false";
-        $forward_busy_destination = check_str($_GET['dest']);
+$extension_uuid = check_str($_GET['extension_uuid'] ?? '');
 
-        $forward_busy_destination = str_replace("+", "", $forward_busy_destination);
-        if (strpos($forward_busy_destination, '0') === 0)
-            $forward_busy_destination = "31" . ltrim($forward_busy_destination, "0");
+// boolean fix
+$forward_busy_enabled = filter_var($_GET['status'] ?? false, FILTER_VALIDATE_BOOLEAN);
+$forward_busy_enabled = $forward_busy_enabled ? 'true' : 'false';
 
+// destination
+$forward_busy_destination = check_str($_GET['dest'] ?? '');
 
-        $extensions['domain_uuid'] = $_SESSION['domain_uuid'];
-        $extensions['extension_uuid'] = $extension_uuid;
-        $extensions['forward_busy_enabled'] = $forward_busy_enabled;
-        $extensions['forward_busy_destination'] = $forward_busy_destination;
+// juiste sanitizing (Fusion verwacht dit)
+$forward_busy_destination = preg_replace('#[^\*0-9]#', '', $forward_busy_destination);
 
-        $array['extensions'][] = $extensions;
+// jouw +31 logica
+if (strpos($forward_busy_destination, '0') === 0) {
+    $forward_busy_destination = "31" . ltrim($forward_busy_destination, "0");
+}
 
+// array structuur fix
+$array = [];
+$array['extensions'][0]['domain_uuid'] = $_SESSION['domain_uuid'];
+$array['extensions'][0]['extension_uuid'] = $extension_uuid;
+$array['extensions'][0]['forward_busy_enabled'] = $forward_busy_enabled;
+$array['extensions'][0]['forward_busy_destination'] = $forward_busy_destination;
 
-        //add the dialplan permission
-        $p = new permissions;
-        $p->add("extension_edit", "temp");
+// permissions (juiste manier)
+if (method_exists('permissions', 'new')) {
+    $p = permissions::new();   // nieuwe Fusion
+} else {
+    $p = new permissions;      // oude Fusion
+}
+$p->add("extension_edit", "temp");
 
-        $database = new database;
-        $database->app_name = 'call_routing';
-        $database->app_uuid = '19806921-e8ed-dcff-b325-dd3e5da4959d';
-        $database->save($array);
+// save
+$database = new database;
+$database->app_name = 'call_routing';
+$database->app_uuid = '19806921-e8ed-dcff-b325-dd3e5da4959d';
+$database->save($array);
 
-        //remove the temporary permission
-        $p->delete("extension_edit", "temp");
+// permission cleanup
+$p->delete("extension_edit", "temp");
 
-        //clear the cache	
-        $sql = "select extension, number_alias, user_context from v_extensions ";
-        $sql .= "where extension_uuid = :extension_uuid ";
-        $parameters['extension_uuid'] = $extension_uuid;
-        $database = new database;
-        $extension = $database->select($sql, $parameters, 'row');
-        $cache = new cache;
-        $cache->delete("directory:".$extension["extension"]."@".$_SESSION['domain_name']);
-        $cache->delete("directory:".$extension["number_alias"]."@".$_SESSION['domain_name']);
+	// clear cache
+	$sql = "select extension, number_alias, user_context from v_extensions ";
+	$sql .= "where extension_uuid = :extension_uuid ";
+	$parameters['extension_uuid'] = $extension_uuid;
+	$database = new database;
+	$extension = $database->select($sql, $parameters, 'row');
+	$cache = new cache;
+	$cache->delete("directory:".$extension["extension"]."@".$extension["user_context"]);
+	$cache->delete("directory:".$extension["number_alias"]."@".$extension["user_context"]);
 
-        echo "Forward BUSY:" . $forward_busy_enabled;
-
+	echo "Forward BUSY:" . $forward_busy_enabled;
     } else if(
         $_GET['action'] == "setnoanswer" && 
         isset($_GET['extension_uuid']) &&
@@ -456,47 +467,58 @@ print_r($voicemail);
         isset($_GET['status']) 
     ) {
 
-        $extension_uuid = check_str($_GET['extension_uuid']);
-        $forward_no_answer_enabled = check_str($_GET['status']);
-        if(!($forward_no_answer_enabled == "true"))
-            $forward_no_answer_enabled = "false";
-        $forward_no_answer_destination = check_str($_GET['dest']);
+$extension_uuid = check_str($_GET['extension_uuid'] ?? '');
 
-        $forward_no_answer_destination = str_replace("+", "", $forward_no_answer_destination);
-        if (strpos($forward_no_answer_destination, '0') === 0)
-            $forward_no_answer_destination = "31" . ltrim($forward_no_answer_destination, "0");
+// boolean fix
+$forward_no_answer_enabled = filter_var($_GET['status'] ?? false, FILTER_VALIDATE_BOOLEAN);
+$forward_no_answer_enabled = $forward_no_answer_enabled ? 'true' : 'false';
 
+// destination
+$forward_no_answer_destination = check_str($_GET['dest'] ?? '');
 
-        $extensions['domain_uuid'] = $_SESSION['domain_uuid'];
-        $extensions['extension_uuid'] = $extension_uuid;
-        $extensions['forward_no_answer_enabled'] = $forward_no_answer_enabled;
-        $extensions['forward_no_answer_destination'] = $forward_no_answer_destination;
+// juiste sanitizing (Fusion verwacht dit)
+$forward_no_answer_destination = preg_replace('#[^\*0-9]#', '', $forward_no_answer_destination);
 
-        $array['extensions'][] = $extensions;
+// jouw +31 logica
+if (strpos($forward_no_answer_destination, '0') === 0) {
+    $forward_no_answer_destination = "31" . ltrim($forward_no_answer_destination, "0");
+}
 
-        //add the dialplan permission
-        $p = new permissions;
-        $p->add("extension_edit", "temp");
+// array structuur fix
+$array = [];
+$array['extensions'][0]['domain_uuid'] = $_SESSION['domain_uuid'];
+$array['extensions'][0]['extension_uuid'] = $extension_uuid;
+$array['extensions'][0]['forward_no_answer_enabled'] = $forward_no_answer_enabled;
+$array['extensions'][0]['forward_no_answer_destination'] = $forward_no_answer_destination;
 
-        $database = new database;
-        $database->app_name = 'call_routing';
-        $database->app_uuid = '19806921-e8ed-dcff-b325-dd3e5da4959d';
-        $database->save($array);
+// permissions (juiste manier)
+if (method_exists('permissions', 'new')) {
+    $p = permissions::new();   // nieuwe Fusion
+} else {
+    $p = new permissions;      // oude Fusion
+}
+$p->add("extension_edit", "temp");
 
-        //remove the temporary permission
-        $p->delete("extension_edit", "temp");
+// save
+$database = new database;
+$database->app_name = 'call_routing';
+$database->app_uuid = '19806921-e8ed-dcff-b325-dd3e5da4959d';
+$database->save($array);
 
-        //clear the cache	
-        $sql = "select extension, number_alias, user_context from v_extensions ";
-        $sql .= "where extension_uuid = :extension_uuid ";
-        $parameters['extension_uuid'] = $extension_uuid;
-        $database = new database;
-        $extension = $database->select($sql, $parameters, 'row');
-        $cache = new cache;
-        $cache->delete("directory:".$extension["extension"]."@".$_SESSION['domain_name']);
-        $cache->delete("directory:".$extension["number_alias"]."@".$_SESSION['domain_name']);
+// permission cleanup
+$p->delete("extension_edit", "temp");
 
-        echo "Forward NOANSWER:" . $forward_no_answer_enabled;
+	// Clear cache
+	$sql = "select extension, number_alias, user_context from v_extensions ";
+	$sql .= "where extension_uuid = :extension_uuid ";
+	$parameters['extension_uuid'] = $extension_uuid;
+	$database = new database;
+	$extension = $database->select($sql, $parameters, 'row');
+	$cache = new cache;
+	$cache->delete("directory:".$extension["extension"]."@".$extension["user_context"]);
+	$cache->delete("directory:".$extension["number_alias"]."@".$extension["user_context"]);
+
+    echo "Forward NOANSWER:" . $forward_no_answer_enabled;
 
     }
     else if($_GET['action'] == "contacts")
@@ -603,15 +625,92 @@ print_r($voicemail);
         echo exec('php resources/c2c_socket.php -i "'.$_SESSION['event_socket_ip_address'].'" -p "'.$_SESSION['event_socket_port'].'" -w "'.$_SESSION['event_socket_password'].'" -c "'.$switch_cmd.'" > /dev/null &');
         echo "Request dispatched";
 
-    } else if($_GET['action'] == "registerdevice")
-    {
+    } else if ($_GET['action'] == "registerdevice") {
 
-	// Recive JWT token $_GET['token'];
+      $device_id = check_str($_GET['deviceid'] ?? '');
+    $token = check_str($_GET['token'] ?? '');
 
-    } else if($_GET['action'] == "unregisterdevice")
-    {
+    if (empty($device_id) || empty($token)) {
+        echo "missing params";
+        exit;
+    }
 
+    $setting_subcategory = "device_" . $device_id;
+
+    $sql = "select user_setting_uuid 
+            from v_user_settings 
+            where domain_uuid = :domain_uuid
+            and user_uuid = :user_uuid
+            and user_setting_category = 'callassist'
+            and user_setting_subcategory = :setting_subcategory
+            and user_setting_name = 'text'";
+
+    $parameters = [];
+    $parameters['domain_uuid'] = $_SESSION['domain_uuid'];
+    $parameters['user_uuid'] = $_SESSION['user_uuid'];
+    $parameters['setting_subcategory'] = $setting_subcategory;
+
+    $database = new database;
+    $row = $database->select($sql, $parameters, 'row');
+
+    $array = [];
+
+    if (!empty($row['user_setting_uuid'])) {
+        $array['user_settings'][0]['user_setting_uuid'] = $row['user_setting_uuid'];
     } else {
+        $array['user_settings'][0]['user_setting_uuid'] = uuid();
+        $array['user_settings'][0]['domain_uuid'] = $_SESSION['domain_uuid'];
+        $array['user_settings'][0]['user_uuid'] = $_SESSION['user_uuid'];
+        $array['user_settings'][0]['user_setting_category'] = 'callassist';
+        $array['user_settings'][0]['user_setting_subcategory'] = $setting_subcategory;
+        $array['user_settings'][0]['user_setting_name'] = 'text';
+        $array['user_settings'][0]['user_setting_enabled'] = 'true';
+    }
+
+    $array['user_settings'][0]['user_setting_value'] = $token;
+
+    $database = new database;
+    $database->save($array);
+
+    echo "registered";
+} else if ($_GET['action'] == "unregisterdevice") {
+
+     $device_id = check_str($_GET['deviceid'] ?? '');
+
+    if (empty($device_id)) {
+        echo "missing device_id";
+        exit;
+    }
+
+    $setting_subcategory = "device_" . $device_id;
+
+    $sql = "select user_setting_uuid 
+            from v_user_settings 
+            where domain_uuid = :domain_uuid
+            and user_uuid = :user_uuid
+            and user_setting_category = 'callassist'
+            and user_setting_subcategory = :setting_subcategory
+            and user_setting_name = 'text'";
+
+    $parameters = [];
+    $parameters['domain_uuid'] = $_SESSION['domain_uuid'];
+    $parameters['user_uuid'] = $_SESSION['user_uuid'];
+    $parameters['setting_subcategory'] = $setting_subcategory;
+
+    $database = new database;
+    $row = $database->select($sql, $parameters, 'row');
+
+    if (!empty($row['user_setting_uuid'])) {
+        $array = [];
+        $array['user_settings'][0]['user_setting_uuid'] = $row['user_setting_uuid'];
+
+        $database = new database;
+        $database->delete($array);
+    }
+
+    echo "unregistered";
+
+} else {
 
  //return user details
         // Performing SQL query
@@ -663,11 +762,23 @@ print_r($voicemail);
 
         unset($parameters);  
 
-        $usersettingsnew = array();	
+        $usersettingsnew = array();
+	 $usersettingsnew["numbers"] = array();	
         foreach ($usersettings as $setting)
         {
+
             if($setting["user_setting_subcategory"] == "numbers" && !empty($setting["user_setting_value"]) && !in_array($setting["user_setting_value"], $usersettingsnew["numbers"]))
-                $usersettingsnew["numbers"][] = $setting["user_setting_value"];
+	     {
+	        $raw = (string)$setting["user_setting_value"];
+
+	        foreach (explode(',', $raw) as $value) {
+	            $value = trim($value);
+
+       	     if ($value !== '' && !in_array($value, $usersettingsnew["numbers"], true)) {
+	                $usersettingsnew["numbers"][] = $value;
+       	     }
+	        }
+	    }
         }		
 
         foreach ($extensions as $extension)
